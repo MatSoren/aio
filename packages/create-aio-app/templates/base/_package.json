@@ -1,0 +1,24 @@
+{
+  "name": "{{projectName}}",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=apps/backend",
+    "build:api": "npm run build --workspace=apps/backend",
+    "start:api": "npm run start --workspace=apps/backend",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "migrate": "npm run migrate --workspace=apps/backend",
+    "generate": "npm run generate --workspace=apps/backend",
+    "update-db": "npm run update-db --workspace=apps/backend",
+    "studio": "npm run studio --workspace=apps/backend",
+    "seed": "npm run seed --workspace=apps/backend"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

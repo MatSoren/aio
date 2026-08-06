@@ -1,0 +1,13 @@
+{
+  "CLAUDE.md": {
+    "@aio:claude-modules": [
+      "",
+      "## Docker",
+      "",
+      "`compose.yml` runs the infra (Postgres, plus Redis if that module is enabled) — the app",
+      "itself runs on the host (`npm run dev:api`), not in the compose stack, so `tsx watch` keeps",
+      "working normally. `docker compose up -d` before the first `npm run migrate`. `Dockerfile`",
+      "builds a standalone production image of `apps/backend` (build context = repo root)."
+    ]
+  }
+}

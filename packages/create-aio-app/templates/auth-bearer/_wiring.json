@@ -1,0 +1,27 @@
+{
+  "packages/contracts/src/auth/index.ts": {
+    "@aio:contracts-auth-barrel": ["export * from \"./session\";"]
+  },
+  "packages/api-client/src/index.ts": {
+    "@aio:api-client-barrel": ["export * from \"./auth\";"]
+  },
+  "apps/backend/src/routes/v1/v1.routes.ts": {
+    "@aio:route-v1-import": ["import authRoutes from \"./auth.routes\";"],
+    "@aio:route-v1-mount": ["router.use(\"/auth\", authRoutes);"]
+  },
+  "CLAUDE.md": {
+    "@aio:claude-auth": [
+      "### Auth",
+      "",
+      "Transport: **Bearer**. The client sends `Authorization: Bearer <accessToken>`; `jwtAuth`",
+      "(`src/middlewares/jwtAuth.ts`) reads it, verifies it, and loads the user into",
+      "`res.locals.user`. `POST /api/v1/auth/login` and `/register` return `{ user, accessToken,",
+      "refreshToken }` in the body — there is no cookie involved anywhere in this flow. `POST",
+      "/api/v1/auth/refresh` takes `{ refreshToken }` in the body (it has no cookie to read it",
+      "from) and returns a fresh pair; the previous refresh token's bcrypt hash on the user row is",
+      "checked and replaced, so a stolen-and-replayed old token is rejected once it's been rotated.",
+      "`POST /api/v1/auth/logout` (behind `jwtAuth`) clears the stored hash, revoking it",
+      "server-side."
+    ]
+  }
+}

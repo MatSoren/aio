@@ -1,0 +1,38 @@
+{
+  "packages/contracts/src/auth/index.ts": {
+    "@aio:contracts-auth-barrel": ["export * from \"./session\";"]
+  },
+  "packages/api-client/src/index.ts": {
+    "@aio:api-client-barrel": ["export * from \"./auth\";"]
+  },
+  "apps/backend/src/app.ts": {
+    "@aio:app-import": ["import cookieParser from \"cookie-parser\";"],
+    "@aio:middleware-early": ["  app.use(cookieParser());"]
+  },
+  "apps/backend/src/routes/v1/v1.routes.ts": {
+    "@aio:route-v1-import": ["import authRoutes from \"./auth.routes\";"],
+    "@aio:route-v1-mount": ["router.use(\"/auth\", authRoutes);"]
+  },
+  "CLAUDE.md": {
+    "@aio:claude-bootstrap-order": ["→ `cookieParser()`"],
+    "@aio:claude-auth": [
+      "### Auth",
+      "",
+      "Transport: **both**. `jwtAuth` (`src/middlewares/jwtAuth.ts`) checks the `accessToken`",
+      "cookie first, falling back to `Authorization: Bearer` — whichever the client actually sent.",
+      "`POST /api/v1/auth/login` and `/register` set httpOnly cookies (for browser clients) *and*",
+      "return `{ user, accessToken, refreshToken }` in the body (for bearer clients — mobile,",
+      "scripts). `POST /api/v1/auth/refresh` takes an optional `{ refreshToken }` body: a bearer",
+      "client sends it, a cookie client omits it and the `refreshToken` cookie",
+      "(`path: \"/api/v1/auth/refresh\"`) is used instead. Either way the token is checked against",
+      "the bcrypt hash stored on the user row, so a stolen-and-replayed old one is rejected once",
+      "it's been rotated. `POST /api/v1/auth/logout` (behind `jwtAuth`) clears both cookies and the",
+      "stored hash, revoking the session for every transport at once.",
+      "",
+      "**Client-side:** a browser consumer of `@{{scope}}/api-client` should still construct it",
+      "with `credentials: \"include\"` in `ApiClientConfig` to get the cookie path working; a",
+      "bearer consumer (mobile) just passes `accessToken`/`refreshToken` explicitly and can ignore",
+      "`credentials` entirely."
+    ]
+  }
+}

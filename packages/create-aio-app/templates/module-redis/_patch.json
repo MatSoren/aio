@@ -1,0 +1,14 @@
+{
+  "workspaces": {
+    "apps/backend": {
+      "dependencies": {
+        "redis": "^5.0.1"
+      }
+    }
+  },
+  "env": {
+    "apps/backend/.env.example": {
+      "REDIS_URL": "redis://localhost:6379"
+    }
+  }
+}

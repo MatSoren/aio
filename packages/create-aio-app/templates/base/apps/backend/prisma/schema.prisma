@@ -1,0 +1,11 @@
+// Multi-file schema: `schema: "prisma"` in prisma.config.ts points Prisma at this whole folder,
+// not just this file — every `.prisma` file under here (recursively) gets concatenated. Keep this
+// file to generator + datasource only; put each model in its own file under `prisma/models/`.
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

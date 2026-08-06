@@ -1,0 +1,12 @@
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  password         String
+  // Hash of the current refresh token (never the raw token) — lets logout/rotation revoke it
+  // server-side regardless of whether the access token itself travels in a cookie or a header.
+  refreshTokenHash String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // @aio:prisma-user-relations
+}

@@ -1,0 +1,16 @@
+{
+  "name": "all-in-one",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Scaffolder + skill de Claude Code para bootstrapear monorepos npm workspaces (Express 5 + Prisma + Postgres) desde cero.",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "smoke": "bash scripts/smoke.sh"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+
+# Prisma client generado — se regenera con `npm run generate`
+apps/backend/generated/
+
+# Secrets locales — cada workspace versiona su .env.example, nunca su .env
+.env
+!.env.example
+
+# uploads locales (módulo uploads)
+apps/backend/uploads/

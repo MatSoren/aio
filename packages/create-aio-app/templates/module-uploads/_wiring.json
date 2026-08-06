@@ -1,0 +1,23 @@
+{
+  "apps/backend/src/config/envs.ts": {
+    "@aio:env-schema": ["  UPLOADS_DIR: z.string().default(\"uploads\"),"],
+    "@aio:env-groups": ["  uploads: { dir: env.UPLOADS_DIR },"]
+  },
+  "apps/backend/src/routes/index.routes.ts": {
+    "@aio:route-root-import": ["import { serveMedia } from \"@controllers/media.controller\";"],
+    "@aio:route-root-mount": ["router.get(\"/media/:filename\", serveMedia);"]
+  },
+  "CLAUDE.md": {
+    "@aio:claude-modules": [
+      "",
+      "## Uploads",
+      "",
+      "`multipart/form-data` bodies go through `safeUpload` (multer, any parse failure becomes a",
+      "400 `INVALID_BODY` instead of an unhandled 500) followed by `validateFormData(schema, opts)`,",
+      "which reads a JSON payload from the `data` field plus files from `opts.fileFields`, merges",
+      "them, and validates the result into `res.locals.input` — same contract as `validateBody`.",
+      "Uploaded files are served back from `GET /media/:filename` (public by default; move it",
+      "behind auth in `routes/index.routes.ts` if needed). See `src/middlewares/upload.ts`."
+    ]
+  }
+}

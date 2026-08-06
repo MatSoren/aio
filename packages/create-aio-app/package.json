@@ -1,0 +1,17 @@
+{
+  "name": "create-aio-app",
+  "version": "0.1.0",
+  "description": "Scaffolds an npm-workspaces monorepo (Express 5 + Prisma + Postgres, contracts package, typed api-client) with a two-layer error system, res.locals-typed middleware pipeline, and optional Redis cache / RBAC modules.",
+  "type": "module",
+  "bin": {
+    "create-aio-app": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "templates"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,37 @@
+{
+  "packages/contracts/src/auth/index.ts": {
+    "@aio:contracts-auth-barrel": ["export * from \"./session\";"]
+  },
+  "packages/api-client/src/index.ts": {
+    "@aio:api-client-barrel": ["export * from \"./auth\";"]
+  },
+  "apps/backend/src/app.ts": {
+    "@aio:app-import": ["import cookieParser from \"cookie-parser\";"],
+    "@aio:middleware-early": ["  app.use(cookieParser());"]
+  },
+  "apps/backend/src/routes/v1/v1.routes.ts": {
+    "@aio:route-v1-import": ["import authRoutes from \"./auth.routes\";"],
+    "@aio:route-v1-mount": ["router.use(\"/auth\", authRoutes);"]
+  },
+  "CLAUDE.md": {
+    "@aio:claude-bootstrap-order": ["→ `cookieParser()`"],
+    "@aio:claude-auth": [
+      "### Auth",
+      "",
+      "Transport: **httpOnly cookies**. `POST /api/v1/auth/login` and `/register` set",
+      "`accessToken`/`refreshToken` cookies (`Set-Cookie`, `httpOnly`, `secure` in production) and",
+      "return only `{ user }` in the body — the tokens never appear there. `jwtAuth`",
+      "(`src/middlewares/jwtAuth.ts`) reads `accessToken` from the cookie jar. The `refreshToken`",
+      "cookie is scoped with `path: \"/api/v1/auth/refresh\"`, so it's only ever sent on that one",
+      "request, never leaking to every other endpoint. `POST /api/v1/auth/refresh` takes no body —",
+      "it reads its own cookie, checks it against the bcrypt hash stored on the user row (so a",
+      "stolen-and-replayed old token is rejected once it's been rotated), and re-sets both",
+      "cookies. `POST /api/v1/auth/logout` (behind `jwtAuth`) clears both cookies and the stored",
+      "hash, revoking the session server-side. See `src/utils/authCookies.ts`.",
+      "",
+      "**Client-side:** construct `createAuthClient` (and any other `@{{scope}}/api-client`",
+      "client) with `credentials: \"include\"` in `ApiClientConfig` — without it, a browser drops",
+      "the cookies on any cross-origin request to the API."
+    ]
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "apps/backend/src/config/envs.ts": {
+    "@aio:env-schema": ["  REDIS_URL: z.url().default(\"redis://localhost:6379\"),"],
+    "@aio:env-groups": ["  redis: {", "    url: env.REDIS_URL,", "  },"]
+  },
+  "apps/backend/src/index.ts": {
+    "@aio:index-import": ["import { connectRedis, redis } from \"@config/redis\";"],
+    "@aio:bootstrap": ["await connectRedis();"],
+    "@aio:shutdown": ["  await redis.quit();"]
+  },
+  "apps/backend/src/types/ResponseLocals.ts": {
+    "@aio:response-locals-fields": ["  cache?: { key: string; ttlSeconds: number };"]
+  },
+  "compose.yml": {
+    "@aio:compose-services": [
+      "  redis:",
+      "    image: redis:7-alpine",
+      "    restart: unless-stopped",
+      "    ports:",
+      "      - \"6379:6379\"",
+      "    volumes:",
+      "      - redis_data:/data",
+      "    healthcheck:",
+      "      test: [\"CMD\", \"redis-cli\", \"ping\"]",
+      "      interval: 5s",
+      "      timeout: 5s",
+      "      retries: 5"
+    ],
+    "@aio:compose-volumes": ["  redis_data:"]
+  },
+  "CLAUDE.md": {
+    "@aio:claude-modules": [
+      "",
+      "## Redis cache",
+      "",
+      "`cacheService` (`src/services/cache.service.ts`) is a thin, fail-open wrapper around",
+      "Redis: every method checks `redis.isReady` first and never throws — if Redis is down, reads",
+      "miss and writes are skipped, so the app keeps serving from Postgres instead of failing the",
+      "request. Invalidation is by **version counter**, not key deletion: `bumpVersion(resource)`",
+      "does an `INCR` on a small `meta:version:<resource>` key, and every previously-built",
+      "versioned key for that resource simply stops being asked for again — no `SCAN`/`DEL` on the",
+      "hot path (`deleteByPattern` exists as an emergency-only escape hatch).",
+      "",
+      "**Reading:** mount `readCache({ ttlSeconds, buildKey })` in front of a `GET` route.",
+      "`buildKey` returns `null` to bypass caching for a given request (e.g. an uncacheable query",
+      "combination) or a key built with `cacheService.buildVersionedKey(resource, ...)`. On a hit",
+      "it responds immediately, skipping the controller; on a miss it stashes",
+      "`{ key, ttlSeconds }` on `res.locals.cache` and calls `next()`.",
+      "",
+      "**Writing:** call `sendCached(res, payload)` instead of `res.json(payload)` in the",
+      "controller behind it — it writes `payload` to the cached key (if `readCache` set one) and",
+      "sends the response in the same call, so caching what you actually send can't drift into",
+      "caching something else.",
+      "",
+      "**Invalidating:** in the write controller for that resource, call",
+      "`cacheService.bumpVersion(resource, { segments: [...] })` with the same `segments` used to",
+      "build the read key's *version* scope (not the full key — params like `skip`/`take` stay out",
+      "of the version scope so one bump invalidates every paginated/filtered variant at once)."
+    ]
+  }
+}

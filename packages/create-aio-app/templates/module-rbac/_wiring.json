@@ -1,0 +1,42 @@
+{
+  "apps/backend/prisma/models/user.prisma": {
+    "@aio:prisma-user-relations": ["  roles UserRole[]"]
+  },
+  "apps/backend/src/seeds/index.ts": {
+    "@aio:seed-import": ["import { seedRolesAndPermissions } from \"./rolesAndPermissions\";"],
+    "@aio:seed-call": ["  await seedRolesAndPermissions();"]
+  },
+  "CLAUDE.md": {
+    "@aio:claude-modules": [
+      "",
+      "## RBAC",
+      "",
+      "`User → UserRole → Role → RolePermission → Permission → (Resource × Operation)` — a",
+      "user holds zero or more roles, each role grants zero or more `(resource, operation)` pairs.",
+      "Seeded resources/operations/roles live in `src/seeds/rolesAndPermissions/`: `RESOURCES`",
+      "(`src/seeds/rolesAndPermissions/resources.ts`) starts with just `\"users\"` — add your app's",
+      "real nouns there. `OPERATIONS` is the fixed CRUD set (`create`/`read`/`readAll`/`update`/`delete`).",
+      "Seeding builds the full resource×operation permission matrix, then grants Admin all of it",
+      "and Member read-only — starting points, not a prescription; adjust `roles.ts` for your",
+      "actual roles.",
+      "",
+      "**Enforcing it:** `getDomainPermissions(resource)(action)` (`src/middlewares/roleValidator.ts`)",
+      "is a curried middleware factory, meant to be partially applied once per route file:",
+      "",
+      "```ts",
+      "const hasPermission = getDomainPermissions(\"widgets\");",
+      "router.get(\"/\", hasPermission(\"readAll\"), listWidgets);",
+      "router.post(\"/\", hasPermission(\"create\"), createWidget);",
+      "```",
+      "",
+      "It runs after `jwtAuth` (needs `res.locals.user`) and throws `ErrorCode.FORBIDDEN` (403) if",
+      "the user holds no role granting that `(resource, action)` pair.",
+      "",
+      "**Assigning roles is your call, on purpose:** this module seeds the RBAC tables but never",
+      "assigns a role to a newly-registered user — whether every signup gets `Member`, whether",
+      "roles are invite-only, whether `Admin` is ever self-service, is a product decision. Wire",
+      "`prisma.userRole.create(...)` into `register` (`src/controllers/auth.controller.ts`) once",
+      "you've decided."
+    ]
+  }
+}
