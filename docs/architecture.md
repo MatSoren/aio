@@ -212,10 +212,16 @@ Pick **Bearer** for anything with a non-browser client (mobile app, another serv
 JavaScript. **Both** when the same API serves a web app and a mobile app and you don't want to run
 two auth systems.
 
-What's shared regardless of transport: password hashing and refresh-token hashing both go through
-one bcrypt wrapper; a refresh token is never stored raw, only its hash, so a stolen database dump
-can't be replayed into new sessions — it can, at most, confirm a token *was* issued, which is
-already public information the token holder has anyway. `jsonwebtoken`'s own
+What's shared regardless of transport: passwords are hashed with bcrypt; refresh tokens with
+SHA-256 (`node:crypto`), compared with `timingSafeEqual`. They're deliberately different: bcrypt
+only reads the first 72 bytes of its input, and those bytes of a JWT (header + `{"sub":"<uuid>"…`)
+are identical for every token issued to the same user — a bcrypt hash of the current refresh token
+would also accept every older, already-rotated one. A JWT is high-entropy, so a fast hash over the
+whole token is the right tool there. A refresh token is never stored raw, only its hash, so a
+stolen database dump can't be replayed into new sessions — it can, at most, confirm a token *was*
+issued, which is already public information the token holder has anyway. Emails are normalized
+(trimmed + lowercased) by the shared `EmailSchema` in contracts before the format check, so
+`Juan@Mail.com` and `juan@mail.com` are the same account on register and login. `jsonwebtoken`'s own
 `TokenExpiredError`/`JsonWebTokenError` get translated into the two different error codes a client
 actually needs to distinguish (`TOKEN_EXPIRED` — the *expected* case, refresh and retry silently —
 versus `INVALID_TOKEN` — something is actually wrong, force a re-login). Login and registration

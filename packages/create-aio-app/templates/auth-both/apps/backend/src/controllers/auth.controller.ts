@@ -1,6 +1,6 @@
 import { prisma } from "@config/database";
 import { appErrorFactory } from "@utils/AppError";
-import { hashSecret, verifySecret, issueTokens, verifyRefreshToken } from "@services/auth.service";
+import { hashPassword, verifyPassword, issueTokens, verifyRefreshToken, refreshTokenMatches } from "@services/auth.service";
 import { setAuthCookies, clearAuthCookies } from "@utils/authCookies";
 import {
   ErrorCode,
@@ -22,11 +22,11 @@ const login: Endpoint<LoginResponse, LoginBody> = async (_req, res) => {
   });
   // Same error for "no such user" and "wrong password" — either one telling the client which
   // case it hit would let them enumerate registered emails.
-  if (!user || !(await verifySecret(password, user.password))) {
+  if (!user || !(await verifyPassword(password, user.password))) {
     throw appErrorFactory({ errorCode: ErrorCode.INVALID_CREDENTIALS });
   }
 
-  const { accessToken, refreshToken, refreshTokenHash } = await issueTokens(user);
+  const { accessToken, refreshToken, refreshTokenHash } = issueTokens(user);
   await prisma.user.update({ where: { id: user.id }, data: { refreshTokenHash } });
   // Set cookies for browser clients AND return the tokens in the body for bearer clients
   // (mobile, scripts) — the same login works for both without either side branching on which
@@ -51,10 +51,10 @@ const register: Endpoint<RegisterResponse, RegisterBody> = async (_req, res) => 
     throw appErrorFactory({ errorCode: ErrorCode.EMAIL_ALREADY_EXISTS });
   }
 
-  const passwordHash = await hashSecret(password);
+  const passwordHash = await hashPassword(password);
   const user = await prisma.user.create({ data: { email, password: passwordHash } });
 
-  const { accessToken, refreshToken, refreshTokenHash } = await issueTokens(user);
+  const { accessToken, refreshToken, refreshTokenHash } = issueTokens(user);
   await prisma.user.update({ where: { id: user.id }, data: { refreshTokenHash } });
   setAuthCookies(res, { accessToken, refreshToken });
 
@@ -93,12 +93,12 @@ const refresh: Endpoint<RefreshResponse, RefreshBody> = async (req, res) => {
 
   // Doesn't match the last-issued token: either it was already rotated by a previous refresh, or
   // this one is stolen and being replayed. Same code either way, don't distinguish.
-  const isValid = await verifySecret(token, user.refreshTokenHash);
+  const isValid = refreshTokenMatches(token, user.refreshTokenHash);
   if (!isValid) {
     throw appErrorFactory({ errorCode: ErrorCode.INVALID_REFRESH_TOKEN });
   }
 
-  const tokens = await issueTokens(user);
+  const tokens = issueTokens(user);
   await prisma.user.update({ where: { id: user.id }, data: { refreshTokenHash: tokens.refreshTokenHash } });
   setAuthCookies(res, tokens);
 
