@@ -1,6 +1,6 @@
 import { prisma } from "@config/database";
 import { appErrorFactory } from "@utils/AppError";
-import { hashSecret, verifySecret, issueTokens, verifyRefreshToken } from "@services/auth.service";
+import { hashPassword, verifyPassword, issueTokens, verifyRefreshToken, refreshTokenMatches } from "@services/auth.service";
 import {
   ErrorCode,
   type LoginBody,
@@ -21,11 +21,11 @@ const login: Endpoint<LoginResponse, LoginBody> = async (_req, res) => {
   });
   // Same error for "no such user" and "wrong password" — either one telling the client which
   // case it hit would let them enumerate registered emails.
-  if (!user || !(await verifySecret(password, user.password))) {
+  if (!user || !(await verifyPassword(password, user.password))) {
     throw appErrorFactory({ errorCode: ErrorCode.INVALID_CREDENTIALS });
   }
 
-  const { accessToken, refreshToken, refreshTokenHash } = await issueTokens(user);
+  const { accessToken, refreshToken, refreshTokenHash } = issueTokens(user);
   await prisma.user.update({ where: { id: user.id }, data: { refreshTokenHash } });
 
   res.json({
@@ -46,10 +46,10 @@ const register: Endpoint<RegisterResponse, RegisterBody> = async (_req, res) => 
     throw appErrorFactory({ errorCode: ErrorCode.EMAIL_ALREADY_EXISTS });
   }
 
-  const passwordHash = await hashSecret(password);
+  const passwordHash = await hashPassword(password);
   const user = await prisma.user.create({ data: { email, password: passwordHash } });
 
-  const { accessToken, refreshToken, refreshTokenHash } = await issueTokens(user);
+  const { accessToken, refreshToken, refreshTokenHash } = issueTokens(user);
   await prisma.user.update({ where: { id: user.id }, data: { refreshTokenHash } });
 
   res.status(201).json({
@@ -82,13 +82,22 @@ const refresh: Endpoint<RefreshResponse, RefreshBody> = async (_req, res) => {
 
   // Doesn't match the last-issued token: either it was already rotated by a previous refresh, or
   // this one is stolen and being replayed. Either way, don't distinguish — same code either way.
-  const isValid = await verifySecret(refreshToken, user.refreshTokenHash);
+  const isValid = refreshTokenMatches(refreshToken, user.refreshTokenHash);
   if (!isValid) {
     throw appErrorFactory({ errorCode: ErrorCode.INVALID_REFRESH_TOKEN });
   }
 
-  const tokens = await issueTokens(user);
-  await prisma.user.update({ where: { id: user.id }, data: { refreshTokenHash: tokens.refreshTokenHash } });
+  // Compare-and-swap: only rotates if the stored hash is still the one just checked, so two
+  // concurrent refreshes with the same token can't both get a fresh pair — the loser sees
+  // `count === 0` and is rejected like any other already-rotated token.
+  const tokens = issueTokens(user);
+  const { count } = await prisma.user.updateMany({
+    where: { id: user.id, refreshTokenHash: user.refreshTokenHash },
+    data: { refreshTokenHash: tokens.refreshTokenHash },
+  });
+  if (count === 0) {
+    throw appErrorFactory({ errorCode: ErrorCode.INVALID_REFRESH_TOKEN });
+  }
 
   res.json({ success: true, data: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken } });
 };

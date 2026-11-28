@@ -150,6 +150,27 @@ EOF
     -d '{"email":"smoke@example.com","password":"supersecret123"}'
   echo "$BODY" | grep -q '"success":true' || fail "register did not return success:true"
 
+  # Email normalization: same account with different casing/whitespace. The cookie jar keeps this
+  # login's refresh cookie for the rotation check below (cookie transport).
+  OLD_JAR="$WORK_DIR/$name.old.jar"
+  assert_status 200 -X POST "http://localhost:3299/api/v1/auth/login" -c "$OLD_JAR" \
+    -H 'Content-Type: application/json' \
+    -d '{"email":"  Smoke@Example.COM ","password":"supersecret123"}'
+  echo "$BODY" | grep -q '"success":true' || fail "login with a differently-cased email failed"
+
+  # Refresh rotation: the first refresh with the old token succeeds, a replay of it is rejected.
+  if [ "$auth" = "cookie" ]; then
+    refresh_old=(-b "$OLD_JAR")
+  else
+    old_rt="$(echo "$BODY" | sed -n 's/.*"refreshToken":"\([^"]*\)".*/\1/p')"
+    [ -n "$old_rt" ] || fail "login body has no refreshToken"
+    refresh_old=(-H 'Content-Type: application/json' -d "{\"refreshToken\":\"$old_rt\"}")
+  fi
+  assert_status 200 -X POST "http://localhost:3299/api/v1/auth/refresh" "${refresh_old[@]}"
+  assert_status 401 -X POST "http://localhost:3299/api/v1/auth/refresh" "${refresh_old[@]}"
+  echo "$BODY" | grep -q '"code":"INVALID_REFRESH_TOKEN"' || fail "replayed refresh token was not rejected"
+  ok "auth verified: case-insensitive login, rotated refresh token rejected on replay"
+
   assert_status 400 -X POST "http://localhost:3299/api/v1/auth/login" \
     -H 'Content-Type: application/json' -d '{"email":"not-an-email"}'
   echo "$BODY" | grep -q '"code":"INVALID_BODY"' || fail "malformed login did not return INVALID_BODY"

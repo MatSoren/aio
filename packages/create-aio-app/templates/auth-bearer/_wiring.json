@@ -18,8 +18,13 @@
       "`res.locals.user`. `POST /api/v1/auth/login` and `/register` return `{ user, accessToken,",
       "refreshToken }` in the body — there is no cookie involved anywhere in this flow. `POST",
       "/api/v1/auth/refresh` takes `{ refreshToken }` in the body (it has no cookie to read it",
-      "from) and returns a fresh pair; the previous refresh token's bcrypt hash on the user row is",
-      "checked and replaced, so a stolen-and-replayed old token is rejected once it's been rotated.",
+      "from) and returns a fresh pair; the previous refresh token's SHA-256 hash on the user row is",
+      "checked (constant-time) and replaced with a compare-and-swap (`updateMany` filtered by the",
+      "hash just verified), so a stolen-and-replayed old token is rejected once it's been rotated",
+      "and two concurrent refreshes with the same token can't both win. Never bcrypt for this hash:",
+      "bcrypt only reads 72 bytes, and that prefix of a JWT is the same for every token of the same",
+      "user — bcrypt stays for passwords only. Every refresh token carries a random `jti`, so two",
+      "signed in the same second are still different.",
       "`POST /api/v1/auth/logout` (behind `jwtAuth`) clears the stored hash, revoking it",
       "server-side."
     ]
