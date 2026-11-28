@@ -84,8 +84,17 @@ const refresh: Endpoint<RefreshResponse> = async (req, res) => {
     throw appErrorFactory({ errorCode: ErrorCode.INVALID_REFRESH_TOKEN });
   }
 
+  // Compare-and-swap: only rotates if the stored hash is still the one just checked, so two
+  // concurrent refreshes with the same token can't both get a fresh pair — the loser sees
+  // `count === 0` and is rejected like any other already-rotated token.
   const tokens = issueTokens(user);
-  await prisma.user.update({ where: { id: user.id }, data: { refreshTokenHash: tokens.refreshTokenHash } });
+  const { count } = await prisma.user.updateMany({
+    where: { id: user.id, refreshTokenHash: user.refreshTokenHash },
+    data: { refreshTokenHash: tokens.refreshTokenHash },
+  });
+  if (count === 0) {
+    throw appErrorFactory({ errorCode: ErrorCode.INVALID_REFRESH_TOKEN });
+  }
   setAuthCookies(res, tokens);
 
   res.json({

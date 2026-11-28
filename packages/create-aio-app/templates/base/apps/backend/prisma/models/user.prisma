@@ -4,7 +4,9 @@ model User {
   password         String
   // SHA-256 hex of the current refresh token (never the raw token, never bcrypt — see
   // `hashRefreshToken` in auth.service.ts) — lets logout/rotation revoke it server-side regardless
-  // of whether the access token itself travels in a cookie or a header.
+  // of whether the access token itself travels in a cookie or a header. One column = one refresh
+  // session per user: a login elsewhere rotates out the previous device's refresh token. Concurrent
+  // sessions need this moved to its own table, one row per refresh token keyed by its `jti`.
   refreshTokenHash String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { appEnv } from "@config/envs";
@@ -36,8 +36,12 @@ export interface AccessTokenPayload {
 export const signAccessToken = (payload: AccessTokenPayload): string =>
   jwt.sign(payload, appEnv.auth.accessSecret, { expiresIn: appEnv.auth.accessExpiration });
 
+// `jwtid` makes every refresh token unique even when two are signed in the same second for the
+// same user (same `iat`/`exp`): without it, a rotation within that second would hand back the very
+// token it was supposed to retire, and the compare-and-swap in the refresh endpoint couldn't tell
+// two concurrent refreshes apart.
 export const signRefreshToken = (payload: AccessTokenPayload): string =>
-  jwt.sign(payload, appEnv.auth.refreshSecret, { expiresIn: appEnv.auth.refreshExpiration });
+  jwt.sign(payload, appEnv.auth.refreshSecret, { expiresIn: appEnv.auth.refreshExpiration, jwtid: randomUUID() });
 
 /** Throws `jsonwebtoken`'s own `TokenExpiredError`/`JsonWebTokenError` on failure — callers (the
  * auth middleware, the refresh endpoint) translate those into `ErrorCode.TOKEN_EXPIRED` /

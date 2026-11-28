@@ -217,17 +217,37 @@ SHA-256 (`node:crypto`), compared with `timingSafeEqual`. They're deliberately d
 only reads the first 72 bytes of its input, and those bytes of a JWT (header + `{"sub":"<uuid>"…`)
 are identical for every token issued to the same user — a bcrypt hash of the current refresh token
 would also accept every older, already-rotated one. A JWT is high-entropy, so a fast hash over the
-whole token is the right tool there. A refresh token is never stored raw, only its hash, so a
-stolen database dump can't be replayed into new sessions — it can, at most, confirm a token *was*
-issued, which is already public information the token holder has anyway. Emails are normalized
-(trimmed + lowercased) by the shared `EmailSchema` in contracts before the format check, so
-`Juan@Mail.com` and `juan@mail.com` are the same account on register and login. `jsonwebtoken`'s own
-`TokenExpiredError`/`JsonWebTokenError` get translated into the two different error codes a client
-actually needs to distinguish (`TOKEN_EXPIRED` — the *expected* case, refresh and retry silently —
-versus `INVALID_TOKEN` — something is actually wrong, force a re-login). Login and registration
-failures return the same generic "invalid credentials" for a wrong password and for a nonexistent
+whole token is the right tool there. Rotation is a compare-and-swap: the refresh endpoint writes
+the new hash with `updateMany({ where: { id, refreshTokenHash: <the hash it just verified> } })`
+and rejects the request if no row matched, so two concurrent refreshes with the same token can't
+both walk away with a valid pair. Every refresh token is signed with a random `jti`, because two
+tokens for the same user signed in the same second would otherwise be byte-identical — the
+rotation would hand back the token it was retiring. A refresh token is never stored raw, only its
+hash, so a stolen database dump can't be replayed into new sessions — it can, at most, confirm a
+token *was* issued, which is already public information the token holder has anyway. Emails are
+normalized (trimmed + lowercased) by the shared `EmailSchema` in contracts before the format
+check, so `Juan@Mail.com` and `juan@mail.com` are the same account on register and login.
+`jsonwebtoken`'s own `TokenExpiredError`/`JsonWebTokenError` get translated into the two different
+error codes a client actually needs to distinguish (`TOKEN_EXPIRED` — the *expected* case, refresh
+and retry silently — versus `INVALID_TOKEN` — something is actually wrong, force a re-login).
+Login returns the same generic "invalid credentials" for a wrong password and for a nonexistent
 account; a route that answers differently for the two is an account-enumeration oracle for anyone
-who scripts against it.
+who scripts against it. (Registration necessarily answers `EMAIL_ALREADY_EXISTS` for a taken email —
+hiding that takes an email-verification flow, which the template doesn't ship.)
+
+Two consequences to know before adopting this, both deliberate trade-offs of the generated code:
+
+- **One refresh session per user.** The user row holds a single `refreshTokenHash`, so a login (or a
+  refresh) on one device rotates out the refresh token of every other device: the first one gets
+  `INVALID_REFRESH_TOKEN` on its next refresh and has to log in again. That's the price of keeping
+  revocation to one column. A product that needs concurrent sessions (web + mobile under `both`, for
+  instance) moves the hash to its own `RefreshToken`/`Session` table keyed by the token's `jti`, and
+  the compare-and-swap above runs on that row instead of on `User`.
+- **Existing data isn't normalized by the contract.** A project that adopts `EmailSchema` (or the
+  SHA-256 refresh hash) after it already has users needs a one-off migration: lowercase and trim the
+  stored emails (`UPDATE "User" SET email = lower(trim(email))`, resolving any case-duplicates
+  first), or those accounts can no longer log in. Stored bcrypt refresh hashes simply stop matching,
+  which forces every user to log in once — no migration needed for that one.
 
 ## Optional modules
 
